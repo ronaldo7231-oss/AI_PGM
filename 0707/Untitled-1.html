@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="ko">
+<head>
+	<meta charset="utf-8" />
+	<title>벽돌깨기</title>
+	<style>
+		html,body{height:100%;margin:0;background:#111;color:#fff;display:flex;align-items:center;justify-content:center}
+		canvas{background:#000;border:4px solid #444}
+		#ui{position:fixed;top:12px;left:12px;font-family:sans-serif}
+	</style>
+ </head>
+ <body>
+	<div id="ui">점수: <span id="score">0</span> &nbsp; 목숨: <span id="lives">3</span></div>
+	<canvas id="game" width="480" height="320"></canvas>
+	<script>
+	const canvas=document.getElementById('game');
+	const ctx=canvas.getContext('2d');
+	const scoreEl=document.getElementById('score');
+	const livesEl=document.getElementById('lives');
+
+	const paddle = {w:75,h:10,x:(canvas.width-75)/2, speed:6};
+	let right=false,left=false;
+	let score=0,lives=3;
+
+	const ball = {x:canvas.width/2,y:canvas.height-30,r:8,dx:2,dy:-2};
+
+	const brickRowCount=4, brickColCount=6, brickWidth=70, brickHeight=20, brickPadding=10, brickOffsetTop=30, brickOffsetLeft=35;
+	const bricks=[];
+	for(let c=0;c<brickColCount;c++){bricks[c]=[];for(let r=0;r<brickRowCount;r++){bricks[c][r]={x:0,y:0,status:1}}}
+
+	document.addEventListener('keydown',e=>{if(e.key==='Right'||e.key==='ArrowRight')right=true; if(e.key==='Left'||e.key==='ArrowLeft')left=true});
+	document.addEventListener('keyup',e=>{if(e.key==='Right'||e.key==='ArrowRight')right=false; if(e.key==='Left'||e.key==='ArrowLeft')left=false});
+	canvas.addEventListener('mousemove',e=>{const rect=canvas.getBoundingClientRect(); const mx=e.clientX-rect.left; paddle.x = Math.max(0, Math.min(canvas.width-paddle.w, mx - paddle.w/2));});
+
+	function collisionDetection(){
+		for(let c=0;c<brickColCount;c++){
+			for(let r=0;r<brickRowCount;r++){
+				const b=bricks[c][r];
+				if(b.status){
+					if(ball.x > b.x && ball.x < b.x+brickWidth && ball.y > b.y && ball.y < b.y+brickHeight){
+						ball.dy = -ball.dy; b.status=0; score+=10; scoreEl.textContent=score; if(checkWin())resetLevel();
+					}
+				}
+			}
+		}
+	}
+
+	function checkWin(){
+		for(let c=0;c<brickColCount;c++)for(let r=0;r<brickRowCount;r++)if(bricks[c][r].status)return false; return true;
+	}
+
+	function resetLevel(){
+		// simple win: restart bricks
+		for(let c=0;c<brickColCount;c++)for(let r=0;r<brickRowCount;r++)bricks[c][r].status=1;
+		ball.x=canvas.width/2; ball.y=canvas.height-30; ball.dx=2; ball.dy=-2;
+	}
+
+	function drawBricks(){
+		for(let c=0;c<brickColCount;c++){
+			for(let r=0;r<brickRowCount;r++){
+				if(bricks[c][r].status){
+					const brickX = (c*(brickWidth+brickPadding))+brickOffsetLeft;
+					const brickY = (r*(brickHeight+brickPadding))+brickOffsetTop;
+					bricks[c][r].x=brickX; bricks[c][r].y=brickY;
+					ctx.fillStyle = '#'+((Math.random()*0xFFFFFF)<<0).toString(16).padStart(6,'0');
+					ctx.fillRect(brickX,brickY,brickWidth,brickHeight);
+				}
+			}
+		}
+	}
+
+	function drawPaddle(){ctx.fillStyle='#0af';ctx.fillRect(paddle.x,canvas.height-paddle.h-10,paddle.w,paddle.h)}
+	function drawBall(){ctx.beginPath();ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2);ctx.fillStyle='#ffa';ctx.fill();ctx.closePath()}
+
+	function update(){
+		ctx.clearRect(0,0,canvas.width,canvas.height);
+		drawBricks(); drawPaddle(); drawBall(); collisionDetection();
+
+		if(ball.x + ball.dx > canvas.width-ball.r || ball.x + ball.dx < ball.r) ball.dx = -ball.dx;
+		if(ball.y + ball.dy < ball.r) ball.dy = -ball.dy;
+		else if(ball.y + ball.dy > canvas.height - ball.r - paddle.h -10){
+			if(ball.x > paddle.x && ball.x < paddle.x + paddle.w){ ball.dy = -ball.dy; }
+			else { lives--; livesEl.textContent=lives; if(lives===0){ alert('게임오버\n점수: '+score); document.location.reload(); } else { ball.x=canvas.width/2; ball.y=canvas.height-30; ball.dx=2; ball.dy=-2; paddle.x=(canvas.width-paddle.w)/2; }}
+		}
+
+		ball.x += ball.dx; ball.y += ball.dy;
+
+		if(right && paddle.x < canvas.width - paddle.w) paddle.x += paddle.speed;
+		else if(left && paddle.x > 0) paddle.x -= paddle.speed;
+
+		requestAnimationFrame(update);
+	}
+
+	update();
+	</script>
+ </body>
+ </html>
